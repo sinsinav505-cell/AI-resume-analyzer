@@ -96,7 +96,7 @@ def resume_analyzer():
             
             #Fit → learns the vocabulary of all unique words from both texts.
 
-            #Transform → converts each text into a vector of numbers.
+            #Transform → Converts each text into a vector of numbers.
 
             score = cosine_similarity(vectors[0], vectors[1])[0][0] 
 
