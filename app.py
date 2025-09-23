@@ -1,130 +1,188 @@
-import streamlit as st  #to change code into web apps
-import PyPDF2 #read pdf file
-from docx import Document  #read word files
-from sklearn.feature_extraction.text import CountVectorizer #convert text to numbers
-from sklearn.metrics.pairwise import cosine_similarity #calculate similarity
-import re #clean text
+import streamlit as st
+import PyPDF2
+from docx import Document
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import re
 
+# ------------------ USER CREDENTIALS ------------------
+USER_CREDENTIALS = {"admin": "1234", "test": "abcd"}
 
-USER_CREDENTIALS = {
-    "admin": "1234",
-    "test": "abcd"
+# ------------------ BACKGROUND ------------------
+st.markdown("""
+<style>
+.stApp {
+    background-image: url("https://images.unsplash.com/photo-1522202176988-66273c2fd55f"); 
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    font-family: 'Trebuchet MS', sans-serif;
+    color: #ffffff !important;
 }
+.title {
+    color: #ffffff;
+    text-align: center;
+    font-size: 48px;
+    font-weight: bold;
+    text-shadow: 2px 2px 6px rgba(0,0,0,0.6);
+    margin-bottom: 20px;
+}
+</style>
+""", unsafe_allow_html=True)
 
+# ------------------ BUTTON STYLING (Login & Analyze) ------------------
+st.markdown("""
+<style>
+.stButton > button, .stFormSubmitButton > button {
+    background-color: #996515 !important;
+    color: black !important;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 10px;
+    padding: 10px 20px;
+    border: none;
+    transition: 0.3s;
+}
+.stButton > button:hover, .stFormSubmitButton > button:hover {
+    background-color: #805000 !important;
+    color: black !important;
+    transform: scale(1.05);
+}
+</style>
+""", unsafe_allow_html=True)
 
+# ------------------ INPUT FIELDS & LABELS ------------------
+st.markdown("""
+<style>
+.stTextInput input, .stTextArea textarea {
+    color: #ffffff !important;
+    background-color: rgba(0,0,0,0.5) !important;
+    border-radius: 8px;
+    border: 1px solid #ffffff55;
+}
+.stTextInput label, .stTextArea label {
+    color: #ffffff !important;
+}
+.stAlert {
+    color: #ffffff !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
+# ------------------ FILE UPLOADER BUTTON ------------------
+st.markdown("""
+<style>
+div.stFileUploader button {
+    background-color: #996515 !important;  /* Dark yellow */
+    color: black !important;               /* Black text */
+    font-weight: bold;
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    transition: 0.3s;
+}
+div.stFileUploader button:hover {
+    background-color: #805000 !important;  /* Darker yellow on hover */
+    color: black !important;
+    transform: scale(1.05);
+}
+</style>
+""", unsafe_allow_html=True)
 
+# ------------------ FUNCTIONS ------------------
 def login():
+    st.markdown("<h1 class='title'>Login Page</h1>", unsafe_allow_html=True)
+    with st.container():
+        with st.form("login_form"):
+            # Username label in white bold
+            st.markdown("<p style='color:white; font-weight:bold;'>Username</p>", unsafe_allow_html=True)
+            username = st.text_input("", label_visibility="collapsed")
 
-    st.title("Login Page")
-    username=st.text_input("Username")
-    password=st.text_input("Password" , type="password")
+            # Password label in white bold
+            st.markdown("<p style='color:white; font-weight:bold;'>Password</p>", unsafe_allow_html=True)
+            password = st.text_input("", type="password", label_visibility="collapsed")
 
-    if st.button("login"):
-
-        if username in USER_CREDENTIALS and USER_CREDENTIALS(username)==password:
-            st.session_state["loged in"]=True
-            st.success("Loged in successfully")
-
-        else:
-            st.error("Login failed")
-
-            if "loged in" not in st.session_state:
-                st.session_state["loged in"]=False
-
-                if st.set_session["logged in"]:
-                    resume_analyzer()
-                
+            submit = st.form_submit_button("Login")
+            if submit:
+                if username in USER_CREDENTIALS and USER_CREDENTIALS[username] == password:
+                    st.session_state["logged_in"] = True
+                    st.success("Logged in successfully!")
+                    st.rerun()
                 else:
-                    login()
-
-                    
-
+                    st.error("Login failed. Try again.")
 
 def read_resume(file):
-    text= ""
-
-    if file.type=="application/pdf":  #check if the file is pdf or not
-        reader=PyPDF2.PdfReader(file)   #open pdf file
-
+    text = ""
+    if file.type == "application/pdf":
+        reader = PyPDF2.PdfReader(file)
         for page in reader.pages:
-            text += page.extract_text() #extract text from page add each text to text
-
-    elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document": #check if the file is word or not
-        doc = Document(file) #open word file
-
+            text += page.extract_text()
+    elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        doc = Document(file)
         for para in doc.paragraphs:
-            text += para.text + " "  #add each paragraph with space to text
-
+            text += para.text + " "
     elif file.type == "text/plain":
         text = file.getvalue().decode("utf-8")
-
     return text
 
-
-
-
-
-#clean text
 def clean_text(text):
-    text=text.lower() #converts text to lowercase
-    text=re.sub(r"[^a-z\s]", "", text)  #removes numbers or punctuations 
-    words = text.split() #split each words
-    return " ".join(words)  #returns splited words into a string with single space
+    text = text.lower()
+    text = re.sub(r"[^a-z\s]", "", text)
+    return " ".join(text.split())
 
-
-
-
-
-#analyzer
 def resume_analyzer():
-    st.title("AI Resume Analyzer")
-    resume_file = st.file_uploader("Upload Resume (PDF, DOCX, TXT)", type=["pdf", "docx", "txt"]) #set it to pdf, docx and txt to upload only this type of files
-    jd_text = st.text_area("Paste Job Description Here:") #create a multiline input for job discription
+    st.markdown("<h1 class='title'>📄 AI Resume Analyzer</h1>", unsafe_allow_html=True)
+
+    # ✅ White label above the uploader
+    st.markdown("<p style='color:white; font-weight:bold;'>Upload Resume (PDF, DOCX, TXT)</p>", unsafe_allow_html=True)
+    
+    # ✅ File uploader with hidden default label
+    resume_file = st.file_uploader("", type=["pdf", "docx", "txt"], label_visibility="collapsed")
+
+    # White bold label with emoji
+    st.markdown("<p style='color:white; font-weight:bold;'>Paste Job Description Here:</p>", unsafe_allow_html=True)
+
+    # Text area without label
+    jd_text = st.text_area("", label_visibility="collapsed")
 
 
-    if st.button("Analyze"):
-
+    if st.button("🔍 Analyze"):
         if resume_file and jd_text.strip() != "":
             resume_text = read_resume(resume_file)
             resume_text = clean_text(resume_text)
             jd_clean = clean_text(jd_text)
 
+            vectorizer = CountVectorizer()
+            vectors = vectorizer.fit_transform([resume_text, jd_clean])
+            score = cosine_similarity(vectors[0], vectors[1])[0][0]
 
-            vectorizer = CountVectorizer() #It converts text into numbers by counting how many times each word appears.
-            vectors = vectorizer.fit_transform([resume_text, jd_clean]) 
-            
-            #Fit → learns the vocabulary of all unique words from both texts.
+            resume_words = set(resume_text.split())
+            jd_words = set(jd_clean.split())
+            missing_keywords = jd_words - resume_words
+            missing = ", ".join(missing_keywords) if missing_keywords else "None 🎉"
 
-            #Transform → Converts each text into a vector of numbers.
+            # White background boxes with black text
+            st.markdown(f"""
+            <div style="background-color:white; color:black; padding:10px; border-radius:8px; font-weight:bold;">
+                ✅ Match Score: {round(score*100,2)}%
+            </div>
+            """, unsafe_allow_html=True)
 
-            score = cosine_similarity(vectors[0], vectors[1])[0][0] 
+            st.markdown(f"""
+            <div style="background-color:white; color:black; padding:10px; border-radius:8px; margin-top:10px; font-weight:bold;">
+                ⚠️ Missing Keywords: {missing}
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.warning("⚠️ Please upload a resume and enter a job description.")
 
+# ------------------ SESSION STATE ------------------
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+if st.session_state["logged_in"]:
+    resume_analyzer()
+else:
+    login()
