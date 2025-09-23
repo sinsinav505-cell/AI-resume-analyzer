@@ -178,7 +178,7 @@ def resume_analyzer():
         else:
             st.warning("⚠️ Please upload a resume and enter a job description.")
 
-# ------------------ SESSION STATE ------------------
+# ------------------ SESSION STATE -------------------
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
