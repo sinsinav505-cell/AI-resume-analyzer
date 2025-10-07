@@ -4,29 +4,38 @@ from docx import Document
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import re
+import base64
 
 # ------------------ USER CREDENTIALS ------------------
 USER_CREDENTIALS = {"admin": "1234", "test": "abcd"}
 
-# ------------------ BACKGROUND ------------------
-st.markdown("""
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
+# 🔹 Path to your local image (use forward slashes!)
+image_path = "D:/AI Analyzer/pexels-boris-pavlikovsky-5498354.jpg"
+img_base64 = get_base64_image(image_path)
+
+# 🔹 Inject custom CSS with background
+st.markdown(f"""
 <style>
-.stApp {
-    background-image: url("https://images.unsplash.com/photo-1522202176988-66273c2fd55f"); 
+.stApp {{
+    background-image: url("data:image/jpeg;base64,{img_base64}");
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
     font-family: 'Trebuchet MS', sans-serif;
     color: #ffffff !important;
-}
-.title {
+}}
+.title {{
     color: #ffffff;
     text-align: center;
     font-size: 48px;
     font-weight: bold;
     text-shadow: 2px 2px 6px rgba(0,0,0,0.6);
     margin-bottom: 20px;
-}
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -113,24 +122,33 @@ def login():
                 else:
                     st.error("Login failed. Try again.")
 
+
+
 def read_resume(file):
     text = ""
+
     if file.type == "application/pdf":
         reader = PyPDF2.PdfReader(file)
         for page in reader.pages:
             text += page.extract_text()
+
     elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         doc = Document(file)
         for para in doc.paragraphs:
             text += para.text + " "
+
     elif file.type == "text/plain":
         text = file.getvalue().decode("utf-8")
     return text
+
+
 
 def clean_text(text):
     text = text.lower()
     text = re.sub(r"[^a-z\s]", "", text)
     return " ".join(text.split())
+
+
 
 def resume_analyzer():
     st.markdown("<h1 class='title'>📄 AI Resume Analyzer</h1>", unsafe_allow_html=True)
@@ -139,7 +157,7 @@ def resume_analyzer():
     st.markdown("<p style='color:white; font-weight:bold;'>Upload Resume (PDF, DOCX, TXT)</p>", unsafe_allow_html=True)
     
     # ✅ File uploader with hidden default label
-    resume_file = st.file_uploader("", type=["pdf", "docx", "txt"], label_visibility="collapsed")
+    resume_file = st.file_uploader("", type=["pdf", "docx", "txt"], accept_multiple_files=True, label_visibility="collapsed")
 
     # White bold label with emoji
     st.markdown("<p style='color:white; font-weight:bold;'>Paste Job Description Here:</p>", unsafe_allow_html=True)
@@ -149,32 +167,47 @@ def resume_analyzer():
 
 
     if st.button("🔍 Analyze"):
+
         if resume_file and jd_text.strip() != "":
-            resume_text = read_resume(resume_file)
-            resume_text = clean_text(resume_text)
             jd_clean = clean_text(jd_text)
 
-            vectorizer = CountVectorizer()
-            vectors = vectorizer.fit_transform([resume_text, jd_clean])
-            score = cosine_similarity(vectors[0], vectors[1])[0][0]
+            results=[]
 
-            resume_words = set(resume_text.split())
-            jd_words = set(jd_clean.split())
-            missing_keywords = jd_words - resume_words
-            missing = ", ".join(missing_keywords) if missing_keywords else "None 🎉"
+            for file in resume_file:
+                resume_text = read_resume(file)
+                resume_text = clean_text(resume_text)
+                
 
-            # White background boxes with black text
+                vectorizer = CountVectorizer()
+                vectors = vectorizer.fit_transform([resume_text, jd_clean])
+                score = cosine_similarity(vectors[0], vectors[1])[0][0]
+
+                resume_words = set(resume_text.split())
+                jd_words = set(jd_clean.split())
+                missing_keywords = jd_words - resume_words
+                missing = ", ".join(missing_keywords) if missing_keywords else "None 🎉"
+
+                results.append({
+                    "Resume": file.name,
+                    "Score": round(score*100, 2),
+                    "Missing Keywords": missing
+                })
+
+            # Sort by highest score
+            results = sorted(results, key=lambda x: x["Score"], reverse=True)
+
+            # Show best resume
+            best = results[0]
             st.markdown(f"""
             <div style="background-color:white; color:black; padding:10px; border-radius:8px; font-weight:bold;">
-                ✅ Match Score: {round(score*100,2)}%
+                🏆 Best Resume: {best['Resume']} <br>
+                ✅ Match Score: {best['Score']}%
             </div>
             """, unsafe_allow_html=True)
 
-            st.markdown(f"""
-            <div style="background-color:white; color:black; padding:10px; border-radius:8px; margin-top:10px; font-weight:bold;">
-                ⚠️ Missing Keywords: {missing}
-            </div>
-            """, unsafe_allow_html=True)
+            # Show all resumes in a table
+            st.write("📊 Comparison of all resumes:")
+            st.dataframe(results)
         else:
             st.warning("⚠️ Please upload a resume and enter a job description.")
 
