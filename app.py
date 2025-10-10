@@ -1,9 +1,27 @@
+#to turn Python scripts into interactive web applications 
+#without needing to know HTML, CSS, or JavaScript.
 import streamlit as st
+
+#to read, write, merge, and manipulate PDF files.
 import PyPDF2
+
+#docx is the library used to read and write Microsoft Word (.docx) files in Python.
+#Document (capital D) is the class you use to open or create Word documents.
 from docx import Document
+
+#CountVectorizer is a text preprocessing tool from scikit-learn
+#Its main job is to convert text into numerical features that machine learning models can understand.
 from sklearn.feature_extraction.text import CountVectorizer
+
+#Cosine similarity tells us how similar two texts are, regardless of their length.
 from sklearn.metrics.pairwise import cosine_similarity
+
+#Resumes and job descriptions can have punctuation, numbers, symbols
+#re helps clean the text so CountVectorizer works properly
 import re
+
+#Base64 encoding converts binary data (like images, files, or bytes) into a text string
+#  using only ASCII characters.
 import base64
 
 # ------------------ USER CREDENTIALS ------------------
@@ -219,3 +237,39 @@ if st.session_state["logged_in"]:
     resume_analyzer()
 else:
     login()
+
+
+
+#visual diagram showing how a resume and job description are turned into vectors and scored
+
+
+
+'''[Resume Text]                     [Job Description Text]
+"I am a Python developer ..."      "Looking for Python and ML skills ..."
+
+        |                                  |
+        |                                  |
+        v                                  v
+  CountVectorizer converts             CountVectorizer converts
+  each text into numeric              each text into numeric
+  vectors (bag-of-words)             vectors (bag-of-words)
+
+Resume Vector:      [1, 2, 0, 1, 0, 3]  
+JD Vector:          [1, 1, 1, 0, 1, 2]
+
+        \                                  /
+         \                                /
+          \                              /
+           \                            /
+            \                          /
+             \                        /
+              v                      v
+         cosine_similarity(resume_vector, jd_vector)
+                     |
+                     v
+                 Score = 0.82
+                     |
+                     v
+       Convert to percentage → 82%
+       Display match score to user
+'''
